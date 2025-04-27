@@ -1,7 +1,10 @@
 GolangCalc_V2
 Copyright (c) 2025 dinklen08. Licensed under the MIT License.
 
-This product includes software developer by the Cobra contributors:
+Third-party components:
 - Cobra (https://github.com/spf13/cobra)
-  Copyright (c) 2004 Steve Francia and the Cobra contributors.
-  Licensed under the Apache License 2.0.
+  Copyright (c) 2004 Steve Francia and the Cobra contributors. Licensed under the Apache License 2.0.
+- Viper (https://github.com/spf13/viper)
+  Copyright (c) 2014 Steve Francia and the Viper contributors. Licensed under the MIT License.
+- Zap (https://github.com/uber-go/zap)
+  Copyright (c) 2016-2024 Uber Technologies, Inc. Licensed under the MIT License.

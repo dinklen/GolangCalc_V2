@@ -1,0 +1,117 @@
+go_calc: |
+  - go_calc:
+    Context: the utility that allows you to calculate mathematical expressions
+             by sending them to a local server, breaking them down into logical
+             parts there and, if possible, calculating each of them in parallel
+             on a microservice, while storing the history of calculations in a
+             database.
+    Commands:
+      - sign_up
+      - start_session
+      - log_out
+      - eval
+      - get_expr
+      - get_subexpr
+      - set_operation_time
+      - set_computing_power
+      - set_port
+      - help
+    For more info type:
+      - go_calc help [--command <command>]
+
+sign_up: |
+  - sign_up:
+    Context: use this to register a new account.
+    Parameters:
+      - login (--login/-l)
+      - password (--password/-p)
+    Example:
+      - go_calc sign_up --login cool_login --password qwerty
+
+start_session: |
+  - start_session:
+    Context: use this to start new session on this device.
+    Parameters:
+      - login (--login/-l)
+      - password (--password/-p)
+    Example:
+      - go_calc start_session --login cool_login --password qwerty
+
+log_out: |
+  - logout:
+    Context: use this to log out from your account.
+    Parameters: none
+    Example:
+      - go_calc log_out
+
+eval: |
+  - eval:
+    Context: use this to evaluate your mathematical expression.
+    Parameters:
+      - expression (--expression/-e)
+    Example:
+      - go_calc eval --expression 17/3.5+6-0.8
+      - go_calc eval --expression "12 - 5 / (9 - 0.41)"
+
+get_expr: |
+  - get_expr:
+    Context: use this to get an expression from the database by his ID.
+    Parameters:
+      - ID (--id/-i)
+    Example:
+      - go_calc get_expr --id 18937483775
+
+get_subexpr: |
+  - get_subexpr:
+    Context: use this to get a subexpression from the database by his ID and
+             the ID of his main expression.
+    Parameters:
+      - subexpression ID (--sub-id/-si)
+      - main expression ID (--main-id/-mi)
+
+set_operation_time: |
+  - set_operation_time:
+    Context: use this to set the time of the calculation operation (ms).
+    Parameters:
+      - plus operation time (--plus/-p)
+      - minus operation time (--minus/-m)
+      - division operation time (--division/-d)
+      - multiply operation time (--multiply/-m)
+    Example:
+      - go_calc set_operation_time --plus 100 --minus 50
+    Default values:
+      - plus = 100
+      - minus = 100
+      - division = 100
+      - multiply = 100
+
+set_computing_power: |
+  - set_computing_power:
+    Context: use this to set the computing power enviroment variable.
+    Parameters:
+      - quantity (--quantity/-q)
+    Example:
+      - go_calc set_computing_power -q 10
+    Default values:
+      - quantity = 5
+
+set_port: |
+  - set_port:
+    Context: use this to set the server and agent port.
+    Parameters:
+      - server port (--server-port/-sp)
+      - agent port (--agent-port/-ap)
+    Example:
+      - go_calc set_port --server-port 8080 --agent-port 8081
+    Default values:
+      - server port = 8080
+      - agent port = 8081
+
+help: |
+  - help:
+    Context: use this to get more info about this program or commands.
+    Parameters:
+      - command (--command/-c)
+    Example:
+      - go_calc help
+      - go_calc help --command sign_up

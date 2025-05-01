@@ -5,17 +5,22 @@ import "github.com/spf13/viper"
 type Config struct {
 	Server struct {
 		Host string `mapstructure:"host"`
-		Port int    `mapstructure:"port"`
+		Port string `mapstructure:"port"`
 	} `mapstructure:"server"`
 
 	Microservice struct {
-		Host string `mapstructure:"host"`
-		Port int    `mapstructure:"port"`
+		Host           string `mapstructure:"host"`
+		Port           string `mapstructure:"port"`
+		ComputingPower int    `mapstructure:"computing_power"`
+		PlusTime       int    `mapstructure:"plus_time"`
+		MinusTime      int    `mapstructure:"minus_time"`
+		MultiplyTime   int    `mapstructure:"multiply_time"`
+		DivisionTime   int    `mapstructure:"division_time"`
 	} `mapstructure:"microservice"`
 
 	Database struct {
 		Host     string `mapstructure:"host"`
-		Port     int    `mapstructure:"port"`
+		Port     string `mapstructure:"port"`
 		User     string `mapstructure:"user"`
 		Password string `mapstructure:"password"`
 		Name     string `mapstructure:"name"`

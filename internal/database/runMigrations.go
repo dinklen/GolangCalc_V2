@@ -15,7 +15,7 @@ func RunMigrations(cfg *config.Config) error {
 	m, err := migrate.New(
 		"file://migrations",
 		fmt.Sprintf(
-			"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 			cfg.Database.User,
 			cfg.Database.Password,
 			cfg.Database.Host,

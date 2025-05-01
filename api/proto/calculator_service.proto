@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package grpc;
+option go_package = "github.com/dinklen/GolangCalc_V2/api/proto/generated";
+
+service Calculator {
+    rpc Calculate (stream Subexpression) returns (stream Result);
+}
+
+message Subexpression {
+    string id = 1;
+    double rightValue = 2;
+    double leftValue = 3;
+    string operator = 4;
+}
+
+message Result {
+    string id = 1;
+    double value = 2;
+    string error = 3;
+}

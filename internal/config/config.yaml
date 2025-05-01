@@ -1,14 +1,19 @@
 server:
   host: localhost
-  port: 8080
+  port: "8080"
 
 microservice:
   host: localhost
-  port: 8081
+  port: "8081"
+  computing_power: 4
+  plus_time: 100
+  minus_time: 100
+  multiply_time: 100
+  division_time: 100
 
 database:
   host: localhost
-  port: 5432
+  port: "5432"
   user: postgres
   password: ${DB_PASSWORD}
   name: go_calc_db

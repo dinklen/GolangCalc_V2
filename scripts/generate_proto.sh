@@ -1,0 +1,1 @@
+protoc -I ../api/proto --go_out=../api/proto --go-grpc_out=../api/proto ../api/proto/calculator_service.proto

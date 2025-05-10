@@ -44,3 +44,5 @@ func Calculate(leftVal, rightVal float64, operator string) (float64, *calc_error
 		}
 	}
 }
+
+// Задержки из конфига

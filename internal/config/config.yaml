@@ -6,11 +6,20 @@ microservice:
   host: localhost
   port: "8081"
   computing_power: 4
-  plus_time: 100
-  minus_time: 100
-  multiply_time: 100
-  division_time: 100
+  waiting_time: 5s
+  plus_time: 100ms
+  minus_time: 100ms
+  multiply_time: 100ms
+  division_time: 100ms
 
+jwt:
+  access_expiry: 15m
+  refresh_expiry: 168h
+  secret: ${JWT_SECRET}
+
+# If you want to change the port,
+# change him in docker-compose.yaml
+# either.
 database:
   host: localhost
   port: "5432"
@@ -18,3 +27,9 @@ database:
   password: ${DB_PASSWORD}
   name: go_calc_db
   ssl_mode: require
+
+redis:
+  host: localhost
+  port: "6379"
+  password: ""
+  waiting_time: 5s

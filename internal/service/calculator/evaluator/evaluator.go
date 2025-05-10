@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"context"
 
 	"github.com/dinklen/GolangCalc_V2/internal/service/calculator/parser"
 	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calc_errors"
+	"github.com/dinklen/GolangCalc_V2/internal/task_manager"
 )
 
-func Evaluate(node *parser.ASTNode) (float64, *calc_errors.EvaluationError) {
+func Evaluate(node *parser.ASTNode,tm *task_manager.TaskManager, parentID string) (float64, *calc_errors.EvaluationError) {
 	if node == nil {
-		return 0, &calc_errors.EvaluationError{
+		return 0.0, &calc_errors.EvaluationError{
 			NodeType: "",
 			Reason:   "empty node encountered",
 			Context:  "AST structure integrity violation",
@@ -20,7 +22,7 @@ func Evaluate(node *parser.ASTNode) (float64, *calc_errors.EvaluationError) {
 
 	if node.Left == nil && node.Right == nil {
 		if node.Token.Type != parser.Number {
-			return 0, &calc_errors.EvaluationError{
+			return 0.0, &calc_errors.EvaluationError{
 				NodeType: "character",
 				Reason:   "got not a number",
 				Context:  fmt.Sprintf("expected number, got %v", node.Token.Value),
@@ -29,7 +31,7 @@ func Evaluate(node *parser.ASTNode) (float64, *calc_errors.EvaluationError) {
 
 		result, err := strconv.ParseFloat(node.Token.Value, 64)
 		if err != nil {
-			return 0, &calc_errors.EvaluationError{
+			return 0.0, &calc_errors.EvaluationError{
 				NodeType: "character",
 				Reason:   "parsing error",
 				Context:  fmt.Sprintf("expected number, got %v", node.Token.Value),
@@ -60,12 +62,25 @@ func Evaluate(node *parser.ASTNode) (float64, *calc_errors.EvaluationError) {
 	wg.Wait()
 
 	if leftErr != nil {
-		return 0, leftErr
+		return 0.0, leftErr
 	}
 
 	if rightErr != nil {
-		return 0, rightErr
+		return 0.0, rightErr
 	}
 
-	return Calculate(leftVal, rightVal, node.Token.Value)
+	stream, err := client.Calculate(context.Background())
+	if err != nil {
+		fmt.Errorf("Failed to create stream: %v", err)
+	}
+
+	result, err := tm.Evaluate(leftVal, rightVal, node.Token.Value, parentID)
+	if err != nil {
+		return 0.0, &calc_errors.EvaluationError{
+			NodeType: "none",
+			Reason: "microservice",
+			Context: fmt.Sprintf("%v", err),
+		}
+	}
+	return result, nil
 }

@@ -11,6 +11,7 @@ import (
 	pb "github.com/dinklen/GolangCalc_V2/api/proto/generated"
 	"github.com/dinklen/GolangCalc_V2/internal/config"
 	"github.com/dinklen/GolangCalc_V2/internal/service/calculator/evaluator"
+
 	"google.golang.org/grpc"
 )
 
@@ -56,7 +57,11 @@ func (p *WorkerPool) worker() {
 		select {
 		case task := <-p.tasks:
 			res, err := evaluateExpression(task.RightValue, task.LeftValue, task.Operator)
-			response := &pb.Result{Id: task.Id}
+			response := &pb.Result{
+				Id: task.Id,
+				ParentId: task.ParentId,
+			}
+
 			if err != nil {
 				response.Error = err.Error()
 			} else {

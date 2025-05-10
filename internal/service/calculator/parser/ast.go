@@ -13,7 +13,7 @@ type ASTNode struct {
 	IsUnary bool
 }
 
-func buildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
+func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
 	var output []*ASTNode
 	var operators []Token
 

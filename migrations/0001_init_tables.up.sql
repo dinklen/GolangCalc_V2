@@ -1,12 +1,12 @@
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(255) UNIQUE NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    login VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE expressions (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id INT REFERENCES users(id),
     expression TEXT NOT NULL,
     result NUMERIC,
@@ -15,7 +15,7 @@ CREATE TABLE expressions (
 );
 
 CREATE TABLE sub_expressions (
-    id UUID PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     expression_id UUID REFERENCES expressions(id),
     sub_expression TEXT NOT NULL,
     result NUMERIC,

@@ -10,6 +10,7 @@ go_calc: |
       - start_session
       - log_out
       - eval
+      - show_history
       - get_expr
       - get_subexpr
       - set_operation_time
@@ -53,6 +54,17 @@ eval: |
       - go_calc eval --expression 17/3.5+6-0.8
       - go_calc eval --expression "12 - 5 / (9 - 0.41)"
 
+show_history: |
+  - show_history:
+    Context: use this to get the calculating history.
+    Parameters:
+      - quantity  (--quantity/-q)
+    Example:
+      - go_calc show_history
+      - go_calc show_history --quantity 5
+    Default values:
+      - quantity = all
+
 get_expr: |
   - get_expr:
     Context: use this to get an expression from the database by his ID.
@@ -66,8 +78,9 @@ get_subexpr: |
     Context: use this to get a subexpression from the database by his ID and
              the ID of his main expression.
     Parameters:
-      - subexpression ID (--sub-id/-si)
-      - main expression ID (--main-id/-mi)
+      - subexpression ID (--subexpression-id/-si)
+    Example:
+      - go_calc get_subexpr --subexpression-id 93778372
 
 set_operation_time: |
   - set_operation_time:

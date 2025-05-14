@@ -302,7 +302,7 @@ curl --cacert cert.pem --location 'https://localhost:<port>/api/v1/expressions/<
 
 ---
 ## Контактная информация
-Telegram: [@dinklen08](https://t.me/@dinklen08)
+Telegram: [@dinklen08](https://t.me/dinklen08)
 
 ---
 The end.

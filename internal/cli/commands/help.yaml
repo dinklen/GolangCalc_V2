@@ -8,6 +8,7 @@ go_calc: |
     Commands:
       - sign_up
       - start_session
+      - account_info
       - log_out
       - eval
       - show_history
@@ -37,6 +38,13 @@ start_session: |
       - password (--password/-p)
     Example:
       - go_calc start_session --login cool_login --password qwerty
+
+account_info: |
+  - account_info:
+    Context: use this to get the account info.
+    Parameters: none
+    Example:
+      - go_calc account_info
 
 log_out: |
   - logout:
@@ -75,12 +83,12 @@ get_expr: |
 
 get_subexpr: |
   - get_subexpr:
-    Context: use this to get a subexpression from the database by his ID and
-             the ID of his main expression.
+    Context: use this to get a subexpression from the database by his ID.
     Parameters:
-      - subexpression ID (--subexpression-id/-si)
+      - Parent ID with suffix (--id/-i)
     Example:
-      - go_calc get_subexpr --subexpression-id 93778372
+      - go_calc get_subexpr --id 4305934598-1
+      - go_calc get_subexpr --id 4305934598-4
 
 set_operation_time: |
   - set_operation_time:
@@ -128,3 +136,5 @@ help: |
     Example:
       - go_calc help
       - go_calc help --command sign_up
+    Default values:
+      - command = go_calc

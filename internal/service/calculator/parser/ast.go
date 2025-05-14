@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"fmt"
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calcerr"
 
-	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calc_errors"
+	"go.uber.org/zap"
 )
 
 type ASTNode struct {
@@ -13,7 +13,8 @@ type ASTNode struct {
 	IsUnary bool
 }
 
-func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
+func BuildAST(tokens []Token, logger *zap.Logger) (*ASTNode, error) {
+	logger.Info("build AST started")
 	var output []*ASTNode
 	var operators []Token
 
@@ -31,9 +32,7 @@ func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
 
 				operators = operators[:len(operators)-1]
 				if len(output) < 2 {
-					return nil, &calc_errors.SyntaxError{
-						Message: fmt.Sprintf("not enough operands for operator %s", top.Value),
-					}
+					return nil, calcerr.ErrNotEnoughOperands
 				}
 
 				right := output[len(output)-1]
@@ -57,9 +56,7 @@ func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
 				top := operators[len(operators)-1]
 				operators = operators[:len(operators)-1]
 				if len(output) < 2 {
-					return nil, &calc_errors.SyntaxError{
-						Message: fmt.Sprintf("not enough operands for operator %s", top.Value),
-					}
+					return nil, calcerr.ErrNotEnoughOperands
 				}
 
 				right := output[len(output)-1]
@@ -74,9 +71,7 @@ func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
 			}
 
 			if len(operators) == 0 || operators[len(operators)-1].Type != LeftParen {
-				return nil, &calc_errors.SyntaxError{
-					Message: "mismatched parentheses",
-				}
+				return nil, calcerr.ErrMismatchedParentheses
 			}
 
 			operators = operators[:len(operators)-1]
@@ -86,16 +81,12 @@ func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
 	for len(operators) > 0 {
 		top := operators[len(operators)-1]
 		if top.Type == LeftParen {
-			return nil, &calc_errors.SyntaxError{
-				Message: "mismatched parentheses",
-			}
+			return nil, calcerr.ErrMismatchedParentheses
 		}
 
 		operators = operators[:len(operators)-1]
 		if len(output) < 2 {
-			return nil, &calc_errors.SyntaxError{
-				Message: fmt.Sprintf("not enough operands for operator %s", top.Value),
-			}
+			return nil, calcerr.ErrNotEnoughOperands
 		}
 
 		right := output[len(output)-1]
@@ -110,11 +101,10 @@ func BuildAST(tokens []Token) (*ASTNode, *calc_errors.SyntaxError) {
 	}
 
 	if len(output) != 1 {
-		return nil, &calc_errors.SyntaxError{
-			Message: "invalid expression",
-		}
+		return nil, calcerr.ErrInvalidExpression
 	}
 
+	logger.Info("build AST finished")
 	return output[0], nil
 }
 

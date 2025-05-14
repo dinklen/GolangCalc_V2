@@ -1,89 +1,73 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
-	"time"
 
-	"github.com/dinklen/GolangCalc_V2/internal/models"
+	"github.com/dinklen/GolangCalc_V2/internal/config"
 	"github.com/dinklen/GolangCalc_V2/internal/database"
 	"github.com/dinklen/GolangCalc_V2/internal/jwt"
+	"github.com/dinklen/GolangCalc_V2/internal/models"
 
-	"github.com/redis/go-redis/v9"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateRegisterHandler(db *sql.DB) error {
+func CreateRegisterHandler(db *sql.DB, logger *zap.Logger) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		accountData := new(models.AccountData)
 
 		if err := ctx.Bind(accountData); err != nil {
-			return ctx.JSON(http.StatusBadRequest, map[string]string{"error":"invalid request"})
+			logger.Error("binding request error")
+			return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 		}
 
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(accountData.Password), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(accountData.PasswordHash), bcrypt.DefaultCost)
 		if err != nil {
-			return err
+			logger.Error("failed to generate password hash")
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate password hash"})
 		}
-		accountData.Password = string(hashedPassword)
+		accountData.PasswordHash = string(hashedPassword)
 
-		if err := database.CreateAccount(db, accountData); err != nil {
-			return ctx.JSON(http.StatusConflict, map[string]string{"error":"user already exists"})
+		if err := database.CreateAccount(db, accountData, logger); err != nil {
+			logger.Error(err.Error())
+			return ctx.JSON(http.StatusConflict, map[string]string{"error": "user is already exists"})
 		}
-		return ctx.JSON(http.StatusCreated, map[string]string{"message":"success to create account"})
+
+		logger.Info("user registering success")
+		return ctx.JSON(http.StatusCreated, map[string]string{"message": "success to create account"})
 	}
 }
 
-func CreateLoginHandler(db *sql.DB, cfg *config.Config, redisClient *redis.Client) error {
+func CreateLoginHandler(db *sql.DB, cfg *config.Config, redisClient *redis.Client, logger *zap.Logger) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		credentials := new(models.AccountData)
 		if err := ctx.Bind(credentials); err != nil {
-			return ctx.JSON(http.StatusBadRequest, map[string]string{"error":"invalid request"})
+			logger.Error("binding failed")
+			return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 		}
 
-		user := new(models.AccountData)
-		if user, err = database.GetAccount(db, credentials); user.ID == "" {
-			if err != nil {
-				return err
-			}
-			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error":"account not found"})
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(credentials.Password)); err != nil {
-			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error":"invalid password"})
-		}
-
-		access, refresh, err := jwt.GenerateTokens(string(user.ID), cfg, redisClient)
+		user, err := database.GetAccount(db, credentials, logger)
 		if err != nil {
-			return err
+			logger.Error(err.Error())
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		ctx.JSON(http.StatusOK, map[string]string{
-			"access_token": access,
-			"refresh_token": refresh,
-		})
-	}
-}
-
-func CreateRefreshHandler(redisClient *redis.Client) error {
-	return func(ctx echo.Context) error {
-		refreshToken := ctx.Request().Header.Get("Authorization")
-		if refreshToken == "" {
-			return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "refresh token required"})
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(credentials.PasswordHash)); err != nil {
+			logger.Error("compare password hash failed")
+			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		}
 
-		claims, err := jwt.ValidateRefreshToken(refreshToken)
+		access, refresh, err := jwt.GenerateTokens(user.ID.String(), cfg, redisClient, logger)
 		if err != nil {
-			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+			logger.Error(err.Error())
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		redisClient.Del(ctx.Request().Context(), refreshToken)
-
-		access, refresh, err := jwt.GenerateTokens(claims.UserID)
-		if err != nil {
-			return err
-		}
-
+		logger.Info("login success")
 		return ctx.JSON(http.StatusOK, map[string]string{
 			"access_token":  access,
 			"refresh_token": refresh,
@@ -91,17 +75,54 @@ func CreateRefreshHandler(redisClient *redis.Client) error {
 	}
 }
 
-func CreateLogOutHandler(redisClient *redis.Client) error {
+func CreateRefreshHandler(redisClient *redis.Client, cfg *config.Config, logger *zap.Logger) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		accessToken := ctx.Request().Header.Get("Authorization")
-		claims, err := ValidateAccessToken(accessToken)
+		refreshToken := new(models.RefreshToken)
+		if err := ctx.Bind(refreshToken); err != nil {
+			logger.Error("refresh token bind failed")
+			return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "failed to bind request"})
+		}
+
+		claims, err := jwt.ValidateRefreshToken(refreshToken.Token, cfg, redisClient, logger)
 		if err != nil {
+			logger.Error("refresh token is incorrect")
+			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+		}
+
+		redisClient.Del(ctx.Request().Context(), refreshToken.Token)
+
+		access, refresh, err := jwt.GenerateTokens(claims.UserID, cfg, redisClient, logger)
+		if err != nil {
+			logger.Error(err.Error())
+			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		logger.Info("refresh success")
+		return ctx.JSON(http.StatusOK, map[string]string{
+			"access_token":  access,
+			"refresh_token": refresh,
+		})
+	}
+}
+
+func CreateLogOutHandler(redisClient *redis.Client, cfg *config.Config, logger *zap.Logger) echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		accessToken := new(models.AccessToken)
+		if err := ctx.Bind(accessToken); err != nil {
+			log.Error("access token bind failed")
+			return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "failed to bind request"})
+		}
+
+		_, err := jwt.ValidateAccessToken(accessToken.Token, cfg, redisClient, logger)
+		if err != nil {
+			logger.Error(err.Error())
 			return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
 		}
 
 		keys, _ := redisClient.Keys(ctx.Request().Context(), "access:*").Result()
-		redisClient.Del(c.Request().Context(), keys...)
+		redisClient.Del(ctx.Request().Context(), keys...)
 
-		return ctx.JSON(http.StatusOK, map[string]string{"status": "logged out"})
+		logger.Info("log out success")
+		return ctx.JSON(http.StatusOK, map[string]string{"message": "logged out"})
 	}
 }

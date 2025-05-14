@@ -3,7 +3,10 @@ package config
 import (
 	"time"
 
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/cfgerr"
+
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -21,6 +24,7 @@ type Config struct {
 		MinusTime      time.Duration `mapstructure:"minus_time"`
 		MultiplyTime   time.Duration `mapstructure:"multiply_time"`
 		DivisionTime   time.Duration `mapstructure:"division_time"`
+		PowerTime      time.Duration `mapstructure:"power_time"`
 	} `mapstructure:"microservice"`
 
 	JWT struct {
@@ -46,19 +50,33 @@ type Config struct {
 	} `mapstructure:"redis"`
 }
 
-func Load() (*Config, error) {
+func Load(logger *zap.Logger) (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("../internal/config")
+	viper.AddConfigPath("../../internal/config")
+	logger.Info("config load success")
 
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
+		return nil, cfgerr.ErrConfigReadingFailed
 	}
+	logger.Info("config read success")
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, err
+		return nil, cfgerr.ErrConfigDataUnmarshalingFailed
 	}
+	logger.Info("config unmarshal success")
 
 	return &cfg, nil
+}
+
+func Update(arg string, value any, logger *zap.Logger) error {
+	viper.Set(arg, value)
+
+	if err := viper.WriteConfig(); err != nil {
+		return cfgerr.ErrConfigUpdattingFailed
+	}
+
+	logger.Info("config update success")
+	return nil
 }

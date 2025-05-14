@@ -1,20 +1,21 @@
 package jwt
 
 import (
+	"context"
 	"time"
-	"fmt"
-	// errors
 
 	"github.com/dinklen/GolangCalc_V2/internal/config"
-	
-	"github.com/redis/go-redis/v9"
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/jwterr"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 type AccessClaims struct {
-	UserID string   `json:"sub"`
-	Jti    string   `json:"jti"`
+	UserID string `json:"sub"`
+	Jti    string `json:"jti"`
 	jwt.StandardClaims
 }
 
@@ -23,80 +24,85 @@ type RefreshClaims struct {
 	jwt.StandardClaims
 }
 
-func GenerateTokens(userID string, cfg *config.Config, redisClient *redis.Client) (string, string, error) {
+func GenerateTokens(userID string, cfg *config.Config, redisClient *redis.Client, logger *zap.Logger) (string, string, error) {
 	accessJti := uuid.New().String()
-	
+
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, AccessClaims{
 		UserID: userID,
 		Jti:    accessJti,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+			ExpiresAt: time.Now().Add(cfg.JWT.AccessExpiry).Unix(),
 		},
 	})
 
-	access, err := accessToken.SignedString(cfg.JWT.Secret)
+	access, err := accessToken.SignedString([]byte(cfg.JWT.Secret))
 	if err != nil {
-		return "", "", err
+		return "", "", jwterr.ErrAccessTokenGeneratingFailed
 	}
+	logger.Info("access token creating success")
 
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, RefreshClaims{
 		UserID: userID,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(7 * 24 * time.Hour).Unix(),
+			ExpiresAt: time.Now().Add(cfg.JWT.RefreshExpiry).Unix(),
 		},
 	})
 
-	refresh, err := refreshToken.SignedString(cfg.JWT.Secret)
+	refresh, err := refreshToken.SignedString([]byte(cfg.JWT.Secret))
 	if err != nil {
-		return "", "", err
+		return "", "", jwterr.ErrRefreshTokenGeneratingFailed
 	}
+	logger.Info("refresh token creating success")
 
-	redisClient.Set(redisClient.Context(), 
-		"access:"+accessJti, 
-		userID, 
-		cfg.JWT.AccessExpiry,
-	)
-
-	redisClient.Set(redisClient.Context(), 
-		"refresh:"+refresh, 
-		userID, 
-		cfg.JWT.RefreshExpiry,
-	)
+	ctx := context.Background()
+	redisClient.Set(ctx, "access:"+accessJti, userID, cfg.JWT.AccessExpiry)
+	redisClient.Set(ctx, "refresh:"+refresh, userID, cfg.JWT.RefreshExpiry)
 
 	return access, refresh, nil
 }
 
-func ValidateAccessToken(tokenString string, cfg *config.Config, redisClient *redis.Client) (*AccessClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &AccessClaims{}, 
+func ValidateAccessToken(tokenString string, cfg *config.Config, redisClient *redis.Client, logger *zap.Logger) (*AccessClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &AccessClaims{},
 		func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+				return nil, jwterr.ErrUnexpectedSigningMethod
 			}
-			return cfg.JWT.Secret, nil
+			return []byte(cfg.JWT.Secret), nil
 		})
-	
+
 	if claims, ok := token.Claims.(*AccessClaims); ok && token.Valid {
-		if redisClient.Get(redisClient.Context(), "access:"+claims.Jti).Err() == redis.Nil {
+		if redisClient.Get(context.Background(), "access:"+claims.Jti).Err() == redis.Nil {
 			return nil, jwt.NewValidationError("token revoked", jwt.ValidationErrorClaimsInvalid)
 		}
 		return claims, nil
 	}
-	return nil, err
+
+	if err != nil {
+		return nil, jwterr.ErrAccessTokenValidationFailed
+	}
+	logger.Info("access token validation success")
+	return nil, nil
 }
 
-func ValidateRefreshToken(tokenString string, cfg *config.Config, redisClient *redis.Client) (*RefreshClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &RefreshClaims{}, 
-		func(t *jwt.Token) (interface{}, error) { 
+func ValidateRefreshToken(tokenString string, cfg *config.Config, redisClient *redis.Client, logger *zap.Logger) (*RefreshClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &RefreshClaims{},
+		func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+				return nil, jwterr.ErrUnexpectedSigningMethod
 			}
+			return []byte(cfg.JWT.Secret), nil
 		})
-	
+
 	if claims, ok := token.Claims.(*RefreshClaims); ok && token.Valid {
-		if redisClient.Get(redisClient.Context(), "refresh:"+tokenString).Err() == redis.Nil {
+		if redisClient.Get(context.Background(), "refresh:"+tokenString).Err() == redis.Nil {
 			return nil, jwt.NewValidationError("token revoked", jwt.ValidationErrorClaimsInvalid)
 		}
 		return claims, nil
 	}
-	return nil, err
+
+	if err != nil {
+		return nil, jwterr.ErrRefreshTokenValidationFailed
+	}
+	logger.Info("refresh token validation success")
+	return nil, nil
 }

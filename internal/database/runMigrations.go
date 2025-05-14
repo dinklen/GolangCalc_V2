@@ -4,16 +4,17 @@ import (
 	"fmt"
 
 	"github.com/dinklen/GolangCalc_V2/internal/config"
-	// errors
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/dberr"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	// _ "source/file"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"go.uber.org/zap"
 )
 
-func RunMigrations(cfg *config.Config) error {
+func RunMigrations(cfg *config.Config, logger *zap.Logger) error {
 	m, err := migrate.New(
-		"file://migrations",
+		"file://../../migrations",
 		fmt.Sprintf(
 			"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 			cfg.Database.User,
@@ -26,12 +27,14 @@ func RunMigrations(cfg *config.Config) error {
 	)
 
 	if err != nil {
-		return err
+		return dberr.ErrMigrationsReadingFailed
 	}
+	logger.Info("migrations creating success")
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return err
+		return dberr.ErrMigrationsUpFailed
 	}
+	logger.Info("migrations up success")
 
 	return nil
 }

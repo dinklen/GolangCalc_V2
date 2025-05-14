@@ -1,13 +1,16 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calc_errors"
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calcerr"
+
+	"go.uber.org/zap"
 )
 
-func Tokenize(expr string) ([]Token, *calc_errors.SyntaxError) {
+func Tokenize(expr string, logger *zap.Logger) ([]Token, error) {
+	logger.Info("tokenize started")
+
 	var tokens []Token
 	var buffer strings.Builder
 
@@ -28,7 +31,7 @@ func Tokenize(expr string) ([]Token, *calc_errors.SyntaxError) {
 
 			switch ch {
 			case '+', '-', '*', '/', '^':
-				if ch == '-' && (i == 0 || tokens[len(tokens)-1].Type == LeftParen || (tokens[len(tokens)-1].Value != ")")) {
+				if ch == '-' && (i == 0 || tokens[len(tokens)-1].Type == LeftParen || (tokens[len(tokens)-1].Type == Operator && tokens[len(tokens)-1].Value != ")")) {
 					tokens = append(tokens, Token{Type: Number, Value: "0"})
 				}
 
@@ -41,9 +44,7 @@ func Tokenize(expr string) ([]Token, *calc_errors.SyntaxError) {
 				tokens = append(tokens, Token{Type: RightParen, Value: string(ch)})
 
 			default:
-				return nil, &calc_errors.SyntaxError{
-					Message: fmt.Sprintf("unknown character: %c", ch),
-				}
+				return nil, calcerr.ErrUnknownCharacter
 			}
 		}
 	}
@@ -52,5 +53,6 @@ func Tokenize(expr string) ([]Token, *calc_errors.SyntaxError) {
 		tokens = append(tokens, Token{Type: Number, Value: buffer.String()})
 	}
 
+	logger.Info("tokenize finished")
 	return tokens, nil
 }

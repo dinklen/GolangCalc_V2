@@ -3,4 +3,4 @@ Distribution calculator with authorization system
 
 ---
 
-Не проверяйте сразу, пожалуйста. Чуть не успел, скоро запушу
+Остался только readme, проект залит

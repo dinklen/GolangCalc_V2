@@ -1,44 +1,48 @@
 package database
 
 import (
-	"fmt"
 	"database/sql"
 
 	"github.com/dinklen/GolangCalc_V2/internal/models"
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/dberr"
 
-	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
-func GetAccount(db *sql.DB, account *models.AccountData) (*models.AccountData, error) {
+func GetAccount(db *sql.DB, account *models.AccountData, logger *zap.Logger) (*models.AccountData, error) {
 	var user models.AccountData
 
 	err := db.QueryRow(
 		`
-		SELECT id, login, password_hash, created_at
+		SELECT id, login, password, created_at
 		FROM users
 		WHERE login = $1
-		ORDERED BY created_at
 		LIMIT 1
 		`,
 		account.Login,
-	).Scan(&user.ID, &user.Login, &user.Password, &user.CreatingTime)
+	).Scan(&user.ID, &user.Login, &user.PasswordHash, &user.CreatingTime)
+
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get account: %v", err)
+		return nil, dberr.ErrAccountGettingFailed
 	}
+
+	logger.Info("account get success")
 	return &user, nil
 }
 
-func CreateAccount(db *sql.DB, account *models.AccountData) error {
+func CreateAccount(db *sql.DB, account *models.AccountData, logger *zap.Logger) error {
 	_, err := db.Exec(
 		`
 		INSERT INTO users(login, password)
 		VALUES ($1, $2)
 		`,
-		accoint.Login,
-		account.Password,
+		account.Login,
+		account.PasswordHash,
 	)
 	if err != nil {
-		return fmt.Errorf("Failed to create account: %v", err)
+		return dberr.ErrAccountCreatingFailed
 	}
+
+	logger.Info("account create success")
 	return nil
 }

@@ -1,16 +1,17 @@
-package redis
+package redisc
 
 import (
-	"cobtext"
-	"time"
+	"context"
 	"fmt"
 
-	"github.con/dinklen/GolangCalc_V2/internal/config"
+	"github.com/dinklen/GolangCalc_V2/internal/config"
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/rediserr"
 
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
-func NewClient(cfg *config.Config) (*redis.Client, error) {
+func NewClient(cfg *config.Config, logger *zap.Logger) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf(
 			"%s:%s",
@@ -18,7 +19,7 @@ func NewClient(cfg *config.Config) (*redis.Client, error) {
 			cfg.Redis.Port,
 		),
 		Password: cfg.Redis.Password,
-		DB: 0,
+		DB:       0,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Redis.WaitingTime)
@@ -26,8 +27,9 @@ func NewClient(cfg *config.Config) (*redis.Client, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, err
+		return nil, rediserr.ErrPingFailed
 	}
-	
+	logger.Info("gRPC client creating success")
+
 	return client, nil
 }

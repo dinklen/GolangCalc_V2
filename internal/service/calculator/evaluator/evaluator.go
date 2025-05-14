@@ -1,48 +1,39 @@
 package evaluator
 
 import (
-	"fmt"
 	"strconv"
 	"sync"
-	"context"
 
 	"github.com/dinklen/GolangCalc_V2/internal/service/calculator/parser"
-	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calc_errors"
-	"github.com/dinklen/GolangCalc_V2/internal/task_manager"
+	"github.com/dinklen/GolangCalc_V2/internal/service/errors/calcerr"
+	"github.com/dinklen/GolangCalc_V2/internal/tm"
+
+	"go.uber.org/zap"
 )
 
-func Evaluate(node *parser.ASTNode,tm *task_manager.TaskManager, parentID string) (float64, *calc_errors.EvaluationError) {
+func Evaluate(node *parser.ASTNode, taskManager *tm.TaskManager, parentID string, logger *zap.Logger) (float64, error) {
 	if node == nil {
-		return 0.0, &calc_errors.EvaluationError{
-			NodeType: "",
-			Reason:   "empty node encountered",
-			Context:  "AST structure integrity violation",
-		}
+		return 0.0, calcerr.ErrEmtpyNode
 	}
+	logger.Info("subtree evaluation started")
 
 	if node.Left == nil && node.Right == nil {
 		if node.Token.Type != parser.Number {
-			return 0.0, &calc_errors.EvaluationError{
-				NodeType: "character",
-				Reason:   "got not a number",
-				Context:  fmt.Sprintf("expected number, got %v", node.Token.Value),
-			}
+			return 0.0, calcerr.ErrUnexpectedCharacter
 		}
+		logger.Info("number node found")
 
 		result, err := strconv.ParseFloat(node.Token.Value, 64)
 		if err != nil {
-			return 0.0, &calc_errors.EvaluationError{
-				NodeType: "character",
-				Reason:   "parsing error",
-				Context:  fmt.Sprintf("expected number, got %v", node.Token.Value),
-			}
+			return 0.0, calcerr.ErrParsingFailed
 		}
+		logger.Info("number node parsing success")
 
 		return result, nil
 	}
 
 	var leftVal, rightVal float64
-	var leftErr, rightErr *calc_errors.EvaluationError
+	var leftErr, rightErr error
 
 	var wg sync.WaitGroup
 
@@ -50,13 +41,13 @@ func Evaluate(node *parser.ASTNode,tm *task_manager.TaskManager, parentID string
 	go func() {
 		defer wg.Done()
 
-		leftVal, leftErr = Evaluate(node.Left)
+		leftVal, leftErr = Evaluate(node.Left, taskManager, parentID, logger)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		rightVal, rightErr = Evaluate(node.Right)
+		rightVal, rightErr = Evaluate(node.Right, taskManager, parentID, logger)
 	}()
 
 	wg.Wait()
@@ -68,19 +59,13 @@ func Evaluate(node *parser.ASTNode,tm *task_manager.TaskManager, parentID string
 	if rightErr != nil {
 		return 0.0, rightErr
 	}
+	logger.Info("subtrees evaluation finished successful")
 
-	stream, err := client.Calculate(context.Background())
+	result, err := taskManager.Evaluate(leftVal, rightVal, node.Token.Value, parentID, logger)
 	if err != nil {
-		fmt.Errorf("Failed to create stream: %v", err)
+		return 0.0, calcerr.ErrBadAnswerFromMicroservice
 	}
 
-	result, err := tm.Evaluate(leftVal, rightVal, node.Token.Value, parentID)
-	if err != nil {
-		return 0.0, &calc_errors.EvaluationError{
-			NodeType: "none",
-			Reason: "microservice",
-			Context: fmt.Sprintf("%v", err),
-		}
-	}
+	logger.Info("subtree evaluation finished")
 	return result, nil
 }

@@ -1,7 +1,10 @@
+// Temporarily stopped
 package commands
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -30,12 +33,11 @@ func init() {
 	viper.AddConfigPath("../internal/cli/commands")
 
 	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("Failed to read help.yaml: %v", err))
+		log.Println("\033[1;38;5;88m[FATAL]\033[0m failed to read help.yaml")
+		os.Exit(1)
 	}
 
 	for key := range viper.AllSettings() {
 		commandsInfo[key] = viper.GetString(key)
 	}
-
-	//fmt.Printf("config: %+v\n", commandsInfo)
 }

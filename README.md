@@ -1,6 +1,8 @@
 # GolangCalc_V2
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+![logo](go.png)
+
 ---
 ## 📜 Содержание
 - [О проекте](#о-проекте)
@@ -48,7 +50,7 @@ git clone https://github.com/dinklen/GolangCalc_V2.git
 ```
 
 Теперь нужно поставить все зависимости.
-> эх, а как же Docker?..
+> дорогой Docker...
 
 Нужно:
 
